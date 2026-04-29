@@ -1,0 +1,188 @@
+library(dplyr)
+library(tidyverse)
+
+# 1. Load and filter the data
+data <- read.csv("~/Desktop/coding projects/data mining/final project/keep this/MRegularSeasonDetailedResults.csv")
+teams <- read.csv("~/Desktop/coding projects/data mining/final project/keep this/MTeams.csv") %>%
+  filter(LastD1Season == 2026)
+
+data <- data %>% filter(Season == 2026)
+
+# 2. Create the Winner perspective
+winners <- data %>%
+  transmute(
+    Season, DayNum,
+    TeamID = WTeamID, OppTeamID = LTeamID,
+    Score = WScore, OppScore = LScore,
+    Loc = WLoc, NumOT,
+    FGM = WFGM, FGA = WFGA, FGM3 = WFGM3, FGA3 = WFGA3,
+    FTM = WFTM, FTA = WFTA, ORB = WOR, DRB = WDR,
+    Ast = WAst, TO = WTO, Stl = WStl, Blk = WBlk, PF = WPF,
+    OppFGM = LFGM, OppFGA = LFGA, OppFGM3 = LFGM3, OppFGA3 = LFGA3,
+    OppFTM = LFTM, OppFTA = LFTA, OppORB = LOR, OppDRB = LDR,
+    OppAst = LAst, OppTO = LTO, OppStl = LStl, OppBlk = LBlk, OppPF = LPF
+  )
+
+# 3. Create the Loser perspective
+losers <- data %>%
+  transmute(
+    Season, DayNum,
+    TeamID = LTeamID, OppTeamID = WTeamID,
+    Score = LScore, OppScore = WScore,
+    Loc = case_when(WLoc == "H" ~ "A", WLoc == "A" ~ "H", TRUE ~ "N"), 
+    NumOT,
+    FGM = LFGM, FGA = LFGA, FGM3 = LFGM3, FGA3 = LFGA3,
+    FTM = LFTM, FTA = LFTA, ORB = LOR, DRB = LDR,
+    Ast = LAst, TO = LTO, Stl = LStl, Blk = LBlk, PF = LPF,
+    OppFGM = WFGM, OppFGA = WFGA, OppFGM3 = WFGM3, OppFGA3 = WFGA3,
+    OppFTM = WFTM, OppFTA = WFTA, OppORB = WOR, OppDRB = WDR,
+    OppAst = WAst, OppTO = WTO, OppStl = WStl, OppBlk = WBlk, OppPF = WPF
+  )
+
+# 4. Combine into a single game-log dataset & calculate game possessions
+games <- bind_rows(winners, losers) %>%
+  mutate(
+    Possessions = 0.5 * ((FGA - ORB + TO + 0.475 * FTA) + (OppFGA - OppORB + OppTO + 0.475 * OppFTA))
+  )
+
+# 5. Aggregate totals, calculate advanced metrics, and REMOVE raw stats
+merged_stats <- games %>%
+  group_by(TeamID) %>%
+  summarise(
+    Games = n(),
+    TotalPossessions = sum(Possessions),
+    Points = sum(Score), OppPoints = sum(OppScore),
+    
+    FGM = sum(FGM), FGA = sum(FGA), FGM3 = sum(FGM3), FGA3 = sum(FGA3),
+    FTM = sum(FTM), FTA = sum(FTA), ORB = sum(ORB), DRB = sum(DRB),
+    Ast = sum(Ast), TO = sum(TO), Stl = sum(Stl), Blk = sum(Blk),
+    
+    OppFGM = sum(OppFGM), OppFGA = sum(OppFGA), OppFGM3 = sum(OppFGM3), OppFGA3 = sum(OppFGA3),
+    OppFTM = sum(OppFTM), OppFTA = sum(OppFTA), OppORB = sum(OppORB), OppDRB = sum(OppDRB),
+    OppAst = sum(OppAst), OppTO = sum(OppTO), OppStl = sum(OppStl), OppBlk = sum(OppBlk)
+  ) %>%
+  mutate(
+    # --- TEMPO / RATINGS ---
+    Pace = TotalPossessions / Games,
+    OffensiveRating = (Points / TotalPossessions) * 100,        
+    DefensiveRating = (OppPoints / TotalPossessions) * 100,     
+    NetRating = OffensiveRating - DefensiveRating,
+    
+    # --- TEAM PER 100 ---
+    Ast_Per100 = (Ast / TotalPossessions) * 100,
+    TO_Per100 = (TO / TotalPossessions) * 100,
+    Stl_Per100 = (Stl / TotalPossessions) * 100,
+    Blk_Per100 = (Blk / TotalPossessions) * 100,
+    
+    # --- OPPONENT PER 100 ---
+    OppAst_Per100 = (OppAst / TotalPossessions) * 100,
+    OppTO_Per100 = (OppTO / TotalPossessions) * 100,
+    OppStl_Per100 = (OppStl / TotalPossessions) * 100,
+    OppBlk_Per100 = (OppBlk / TotalPossessions) * 100,
+    
+    # --- TEAM PERCENTAGES ---
+    FG_Pct = FGM / FGA,
+    FG3_Pct = FGM3 / FGA3,
+    FT_Pct = FTM / FTA,
+    eFG_Pct = (FGM + 0.5 * FGM3) / FGA,                         
+    TS_Pct = Points / (2 * (FGA + 0.475 * FTA)),                
+    ORB_Pct = ORB / (ORB + OppDRB),                             
+    TOV_Pct = TO / (FGA + 0.475 * FTA + TO),
+    
+    # --- OPPONENT PERCENTAGES ---
+    OppFG_Pct = OppFGM / OppFGA,
+    OppFG3_Pct = OppFGM3 / OppFGA3,
+    OppFT_Pct = OppFTM / OppFTA,
+    OppeFG_Pct = (OppFGM + 0.5 * OppFGM3) / OppFGA,                         
+    OppTS_Pct = OppPoints / (2 * (OppFGA + 0.475 * OppFTA)),                
+    DRB_Pct = DRB / (DRB + OppORB), # Defensive rebounding is stopping Opp ORB                            
+    OppTOV_Pct = OppTO / (OppFGA + 0.475 * OppFTA + OppTO),
+    
+    # --- SHARED PERCENTAGE ---
+    TRB_Pct = (ORB + DRB) / ((ORB + DRB) + (OppORB + OppDRB))
+  ) %>%
+  left_join(teams %>% select(TeamID, TeamName), by = "TeamID") %>%
+  # EXPLICITLY SELECT ONLY TEMPO-ADJUSTED, PERCENTAGES, AND RATINGS
+  select(
+    TeamID, TeamName, Games, Pace, NetRating, 
+    OffensiveRating, DefensiveRating,
+    Ast_Per100, TO_Per100, Stl_Per100, Blk_Per100,
+    OppAst_Per100, OppTO_Per100, OppStl_Per100, OppBlk_Per100,
+    FG_Pct, FG3_Pct, FT_Pct, eFG_Pct, TS_Pct,
+    OppFG_Pct, OppFG3_Pct, OppFT_Pct, OppeFG_Pct, OppTS_Pct,
+    ORB_Pct, DRB_Pct, TRB_Pct, TOV_Pct, OppTOV_Pct
+  )
+
+# 6. Create the Isolated Team Table
+team_stats <- merged_stats %>%
+  select(
+    TeamID, TeamName, Games, Pace, NetRating, OffensiveRating, 
+    Ast_Per100, TO_Per100, Stl_Per100, Blk_Per100,
+    FG_Pct, FG3_Pct, FT_Pct, eFG_Pct, TS_Pct, 
+    ORB_Pct, TRB_Pct, TOV_Pct
+  )
+
+# 7. Create the Isolated Opponent Table
+opponent_stats <- merged_stats %>%
+  select(
+    TeamID, TeamName, Games, Pace, NetRating, DefensiveRating, 
+    OppAst_Per100, OppTO_Per100, OppStl_Per100, OppBlk_Per100,
+    OppFG_Pct, OppFG3_Pct, OppFT_Pct, OppeFG_Pct, OppTS_Pct, 
+    DRB_Pct, TRB_Pct, OppTOV_Pct
+  )
+
+
+opponent_stats
+
+
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+# 1. Calculate 2PT specific stats and Shot Selection metrics
+# We use the 'games' dataframe created in the previous steps
+study_data <- games %>%
+  group_by(TeamID) %>%
+  summarise(
+    TotalPossessions = sum(Possessions),
+    OppPoints = sum(OppScore),
+    FGA = sum(FGA),
+    FGM = sum(FGM),
+    FGA3 = sum(FGA3),
+    FGM3 = sum(FGM3)
+  ) %>%
+  mutate(
+    # Defensive Efficiency (Our Target)
+    DefensiveRating = (OppPoints / TotalPossessions) * 100,
+    
+    # Shot Selection (The Independent Variables)
+    ThreePointRate = FGA3 / FGA,
+    TwoPointRate = (FGA - FGA3) / FGA,
+    
+    # Efficiency by Zone
+    TwoPoint_Pct = (FGM - FGM3) / (FGA - FGA3),
+    ThreePoint_Pct = FGM3 / FGA3
+  )
+
+# 2. Run Correlations against Defensive Rating
+# Note: Negative correlation means the stat helps the defense (lowers the rating)
+cor_2pt_eff <- cor(study_data$TwoPoint_Pct, study_data$DefensiveRating, use="complete.obs")
+cor_3pt_eff <- cor(study_data$ThreePoint_Pct, study_data$DefensiveRating, use="complete.obs")
+cor_3p_freq <- cor(study_data$ThreePointRate, study_data$DefensiveRating, use="complete.obs")
+
+print(paste("Correlation of 2PT Efficiency with DefRating:", round(cor_2pt_eff, 3)))
+print(paste("Correlation of 3PT Efficiency with DefRating:", round(cor_3pt_eff, 3)))
+print(paste("Correlation of 3PT Attempt Rate with DefRating:", round(cor_3p_freq, 3)))
+
+# 3. Visualization: 3P Attempt Rate vs Defensive Efficiency
+ggplot(study_data, aes(x = ThreePointRate, y = DefensiveRating)) +
+  geom_point(alpha = 0.5, color = "darkgreen") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(
+    title = "Shot Selection vs. Defensive Performance",
+    subtitle = "Does shooting more 3s correlate with a worse (higher) Defensive Rating?",
+    x = "3-Point Attempt Rate (% of shots that are 3s)",
+    y = "Defensive Rating (Points Allowed per 100 Poss)"
+  ) +
+  theme_minimal()
