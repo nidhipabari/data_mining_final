@@ -9,3 +9,12 @@ oppp_2_point_attempt_rate =  (OpponentFieldGoalsAttempted - OpponentThreePointsA
 
 home points per 2 point attempt = OpponentTwoPointPercentage*2
 opponent points per 3 point shot attempt  = OPP_pt3% * 3
+
+
+
+TeamPoss = FieldGoalsAttempted - OffRebounds + Turnovers + 0.44 * FreeThrowsAttempted
+Points_per_possession = Score / TeamPoss
+
+#defensive table
+OppPoss = OpponentFieldGoalsAttempted - OpponentOffRebounds + OpponentTurnovers + 0.44 * OpponentFreeThrowsAttempted
+points_per_possession_allowed = OpponentScore / OppPoss
