@@ -1,0 +1,195 @@
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+#load the data
+
+
+data <- read.csv("~/Desktop/coding projects/data mining/final project/keep this/MRegularSeasonDetailedResults.csv")
+teams <- read.csv("~/Desktop/coding projects/data mining/final project/keep this/MTeams.csv")
+teams = teams %>% filter(LastD1Season == 2026) 
+
+data2 = data
+teams2 = teams
+
+names(data)
+names(teams)
+#merge the stats when the team wins and loses a game
+winners <- data %>%
+  transmute(Season, DayNum, TeamID = WTeamID, OppTeamID = LTeamID, Score = WScore, Loc = WLoc,
+    NumOT,
+    FGM = WFGM, FGA = WFGA, FGM3 = WFGM3, FGA3 = WFGA3, FTM = WFTM, FTA = WFTA, ORB = WOR, DRB = WDR, Ast = WAst, TO = WTO, Stl = WStl, Blk = WBlk, PF = WPF)
+
+losers <- data %>%
+  transmute(
+    Season, DayNum, TeamID = LTeamID, OppTeamID = WTeamID, Score = LScore, Loc = "A", NumOT, FGM = LFGM, FGA = LFGA,
+    FGM3 = LFGM3, FGA3 = LFGA3, FTM = LFTM, FTA = LFTA, ORB = LOR, DRB = LDR, Ast = LAst, TO = LTO, Stl = LStl, 
+    Blk = LBlk, PF = LPF
+  )
+
+
+# combine into single dataset
+data <- bind_rows(winners, losers)
+
+
+#add team name
+data = full_join(data, teams, by = "TeamID")
+
+#rename columns
+data <- data %>%
+  rename(FieldGoalsMade = FGM, FieldGoalsAttempted = FGA, ThreePointsMade = FGM3, ThreePointsAttempted = FGA3,
+    FreeThrowsMade = FTM, FreeThrowsAttempted = FTA, OffRebounds = ORB, DefRebounds = DRB, Assists = Ast,
+    Turnovers = TO, Steals = Stl, Blocks = Blk, Fouls = PF,
+  )
+
+
+#remove all data that is not 2026 and convert to avg of team stats. 
+data = data %>% filter(Season == 2026) %>% group_by(TeamID) %>%  summarise(TeamName = first(TeamName), across(where(is.numeric), ~mean(.x, na.rm = TRUE)))
+
+
+names(data)
+winnerStats<-data
+data<-data2
+
+
+
+
+
+
+
+
+
+
+data <-data2
+teams = teams2
+
+
+
+#merge the stats when the team wins and loses a game
+winners <- data %>%
+  transmute(
+    Season, DayNum, TeamID = LTeamID, OppTeamID = WTeamID, Score = LScore, Loc = WLoc,
+    NumOT, FGM = LFGM, FGA = LFGA, FGM3 = LFGM3, FGA3 = LFGA3, FTM = LFTM, FTA = LFTA,
+    ORB = LOR, DRB = LDR, Ast = LAst, TO = LTO, Stl = LStl, Blk = LBlk, PF = LPF
+  )
+
+losers <- data %>%
+  transmute(
+    Season, DayNum, TeamID = WTeamID, OppTeamID = LTeamID, Score = WScore, Loc = "A",   # FIXED (they were away)
+    NumOT, FGM = WFGM, FGA = WFGA, FGM3 = WFGM3, FGA3 = WFGA3, FTM = WFTM, FTA = WFTA, ORB = WOR, DRB = WDR,
+    Ast = WAst, TO = WTO, Stl = WStl, Blk = WBlk, PF = WPF
+  )
+
+losers <- data %>%
+  transmute(
+    Season, DayNum, TeamID = WTeamID, OppTeamID = WTeamID,
+    Score = LScore, Loc = "A",   NumOT, FGM = LFGM, FGA = LFGA, FGM3 = LFGM3,
+    FGA3 = LFGA3, FTM = LFTM, FTA = LFTA, ORB = LOR, DRB = LDR, Ast = LAst, TO = LTO, Stl = LStl, Blk = LBlk, PF = LPF
+  )
+
+
+# combine into single dataset
+data <- bind_rows(winners, losers)
+
+
+
+#remove all data that is not 2026 and convert to avg of team stats. 
+data = data %>% filter(Season == 2026) %>% group_by(TeamID) %>%   summarise(across(where(is.numeric), ~mean(.x, na.rm = TRUE)))
+
+data = full_join(data, teams, by = "TeamID")
+
+data <- data %>%
+  rename(
+    OpponentFieldGoalsMade = FGM,
+    OpponentFieldGoalsAttempted = FGA,
+    OpponentThreePointsMade = FGM3,
+    OpponentThreePointsAttempted = FGA3,
+    OpponentFreeThrowsMade = FTM,
+    OpponentFreeThrowsAttempted = FTA,
+    
+    OpponentOffRebounds = ORB,
+    OpponentDefRebounds = DRB,
+    
+    OpponentAssists = Ast,
+    OpponentTurnovers = TO,
+    OpponentSteals = Stl,
+    OpponentBlocks = Blk,
+    OpponentFouls = PF
+  )
+
+#combine the data
+data = data %>% filter(Season == 2026) %>% group_by(TeamID) %>%  summarise(    TeamName = first(TeamName),across(where(is.numeric), ~mean(.x, na.rm = TRUE)))
+
+
+zloserStats <-data
+
+
+
+
+#tables
+winnerStats #this has the stats of the winning team
+
+
+
+
+
+
+
+
+data = full_join(data, winnerStats, by = "TeamID")
+cor_matrix <- cor(numeric_vars)
+
+corrplot(cor_matrix, method = "color", type = "upper", 
+         tl.col = "black", tl.srt = 45,
+         col = colorRampPalette(c("#E8F4F8", "#4472C4"))(100))
+
+
+
+
+numeric_vars <- zloserStats %>%
+  select(where(is.numeric))
+winnerVars <- winnerStats %>%
+  select(where(is.numeric))
+
+corr <- cor(winnerVars, numeric_vars$Score) 
+
+ggcorrplot(corr, hc.order = TRUE, outline.col = "white")
+library(ggcorrplot)
+
+
+
+numeric_vars <- zloserStats %>%
+  select(where(is.numeric))
+
+winnerVars <- winnerStats %>%
+  select(where(is.numeric))
+
+# Correlation of all winner vars vs Score
+corr <- cor(winnerVars, numeric_vars$Score)
+
+# Convert to matrix so ggcorrplot works
+corr_matrix <- as.matrix(corr)
+
+ggcorrplot(corr_matrix, 
+           hc.order = TRUE, 
+           outline.col = "white")
+
+
+
+
+corr <- cor(winnerVars, numeric_vars$Score)
+corr <- cor(winnerVars, numeric_vars$Score, use = "complete.obs")
+
+corr_df <- data.frame(
+  Variable = rownames(as.matrix(corr)),
+  Correlation = as.numeric(corr)
+)
+
+ggplot(corr_df, aes(x = reorder(Variable, Correlation), y = Correlation)) +
+  geom_col() +
+  coord_flip()
+
+
+
+
+
+
