@@ -4,3 +4,8 @@ OPP_pt3% = OpponentThreePointsAttempted/OpponentThreePointsAttempted
 OpponentTwoPointPercentage = (OpponentFieldGoalsMade - OpponentThreePointsMade) / (OpponentFieldGoalsAttempted - OpponentThreePointsAttempted)
 oppp_2_point_attempt_rate =  (OpponentFieldGoalsAttempted - OpponentThreePointsAttempted) / OpponentFieldGoalsAttempted
 
+
+
+
+home points per 2 point attempt = OpponentTwoPointPercentage*2
+opponent points per 3 point shot attempt  = OPP_pt3% * 3
