@@ -2,3 +2,5 @@ stats jow top calculate
 OPP_pt3% = OpponentThreePointsAttempted/OpponentThreePointsAttempted
 
 OpponentTwoPointPercentage = (OpponentFieldGoalsMade - OpponentThreePointsMade) / (OpponentFieldGoalsAttempted - OpponentThreePointsAttempted)
+oppp_2_point_attempt_rate =  (OpponentFieldGoalsAttempted - OpponentThreePointsAttempted) / OpponentFieldGoalsAttempted
+
